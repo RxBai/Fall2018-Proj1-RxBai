@@ -22,7 +22,7 @@ The goal of this project is to look deeper into the causes that make us happy. N
 
 In this project you will carry out an exploratory data analysis of the corpus of [HappyDB](https://rit-public.github.io/HappyDB/) and write a blog on interesting findings.
 
-You are tasked to explore the texts using tools from text mining and natural language processing such as sentiment analysis, topic modeling, etc, all available in `R` and write a blog post using `R` Notebook. Your blog should be in the form of a `data story` blog on interesting trends and patterns identified by your analysis of these happy moments. 
+You are tasked to explore the texts using tools from text mining and natural language processing such as **sentiment analysis, topic modeling, etc,** all available in `R` and write a blog post using `R` Notebook. Your blog should be in the form of a `data story` blog on interesting trends and patterns identified by your analysis of these happy moments. 
 
 Data from the HappyDB project can be found on [GitHub](https://github.com/rit-public/HappyDB/tree/master/happydb/data). Before carrying out any analysis, you should read the [description of the data files](https://github.com/rit-public/HappyDB).
 
