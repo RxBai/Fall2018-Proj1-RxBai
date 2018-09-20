@@ -1,0 +1,433 @@
+---
+title: "Data Story of Happy Moments"
+author: "Ruoxi Bai"
+output:
+  html_document:
+    df_print: paged
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+HappyDB is a corpus of 100,000+ crowd-sourced happy moments. The goal of the corpus is to advance the state of the art of understanding the causes of happiness that can be gleaned from text. Rit-public conducted a large scale collection of happy moments over 3 months on Amazon Mechanical Turk (MTurk.) For every task, they asked the MTurk workers to describe 3 happy moments in the past 24 hours (or past 3 months.)
+
+This report aims to extract interesting finds from HappyDB using data science methods.
+
+# Step 0 - Load all the required libraries
+
+```{r, message=FALSE, warning=FALSE}
+packages.used = c("tm","tidytext","dplyr", "reshape2", "tidyverse","wordcloud","tidyr", "scales", "ggplot2", "ngram", "topicmodels", "syuzhet")
+
+# check packages that need to be installed.
+packages.needed = setdiff(packages.used, 
+                        intersect(installed.packages()[,1], 
+                                  packages.used))
+# install additional packages
+if(length(packages.needed)>0){
+  install.packages(packages.needed, dependencies = TRUE)
+}
+
+# load packages
+library(tm)
+library(tidytext)
+library(dplyr)
+library(reshape2)
+library(tidyverse)
+library(wordcloud)
+library(tidyr)
+library(scales)
+library(ggplot2)
+library(ngram)
+library(topicmodels)
+library(syuzhet)
+```
+
+This notebook was prepared with the following environmental settings.
+
+```{r}
+print(R.version)
+```
+
+# Step 1 - Load data
+
+```{r, message=FALSE, warning=FALSE}
+# read in csv files
+urlfiles = c('https://raw.githubusercontent.com/rit-public/HappyDB/master/happydb/data/cleaned_hm.csv',
+              'https://raw.githubusercontent.com/rit-public/HappyDB/master/happydb/data/demographic.csv',
+              'https://raw.githubusercontent.com/rit-public/HappyDB/master/happydb/data/senselabel.csv')
+cleaned_hm = read_csv(urlfiles[1])
+demographic = read_csv(urlfiles[2])
+senselabel = read_csv(urlfiles[3])
+
+# select columns that I am interested in
+cleaned_hm = cleaned_hm[, c("hmid", "wid", "reflection_period", "cleaned_hm")]
+senselabel = senselabel[, c("hmid", "tokenOffset", "lowercaseLemma", "POS", "supersenseLabel")]
+```
+
+# Step 2 - Text processing
+
+## Clean text
+
+For the "cleaned_hm" data, Remove extra white spaces, punctuations, numbers and time-related words, convert all letters to the lower case, remove stop words, remove empty words due to formatting errors. Then reduce the words to their stems.
+
+```{r, message=FALSE, warning=FALSE, }
+########## Process on cleaned_hm from "cleaned_hm.csv" ##########
+hm = VCorpus(VectorSource(cleaned_hm$cleaned_hm))
+# create a dictionary for stemmed words
+dictionary = tm_map(hm, stripWhitespace) %>% 
+    tm_map(removeNumbers) %>%
+    tm_map(removePunctuation) %>%
+    tm_map(content_transformer(tolower)) %>%
+    tm_map(removeWords, stopwords("english")) %>%
+    tm_map(removeWords, character(0))  %>%
+    tm_map(removeWords, c("time", "today", "yesterday", "day", "week", "weekend", "month", "year", "recently", "moment","moments", "morning",    "afternoon", "evening", "night", "ago", "past", "happy", "happier", "happiest"))
+
+# stem the text
+# some words stemmed to the words we want to remove, remove them again
+hm = dictionary %>%
+  tm_map(stemDocument) %>% 
+  tm_map(removeWords, c("time", "today", "yesterday", "day", "week", "weekend", "month", "year", "recently", "moment","moments", "morning",    "afternoon", "evening", "night", "ago", "past", "happy", "happier", "happiest"))
+
+# get a dataframe on dictionary words
+dict_text = data.frame(text=unlist(sapply(dictionary, `[`, "content")), stringsAsFactors=F)
+dict_word = unnest_tokens(dict_text, word, text)
+```
+
+## Count the nouns in the corpus according to the "senselabel" data, and join text and demographic features together
+
+```{r, message = F, warning = F}
+########## Count nouns in the corpus ##########
+# for later use, remove words associated with time and count the nouns
+hm_noun = filter(senselabel, POS == "NOUN") %>% 
+  filter(lowercaseLemma != "today") %>%
+  filter(lowercaseLemma != "day") %>%
+  filter(lowercaseLemma != "time") %>%
+  filter(lowercaseLemma != "week") %>%
+  filter(lowercaseLemma != "month") %>%
+  filter(lowercaseLemma != "year") %>%
+  filter(lowercaseLemma != "yesterday") %>%
+  count(lowercaseLemma, sort = T)
+
+########## Join happy moments with demograhpic information ##########
+hm_text = data.frame(text=unlist(sapply(hm, `[`, "content")), stringsAsFactors=F)
+cleaned_hm["hm"]  =  hm_text$text
+hm_df <- cleaned_hm %>%
+  inner_join(demographic, by = "wid") %>%
+  select(wid,
+         hm,
+         gender, 
+         marital, 
+         parenthood,
+         reflection_period,
+         age, 
+         country)
+# filter to categories that we are interested in
+hm_df = mutate(hm_df, count = sapply(hm_df$hm, wordcount)) %>%
+  filter(gender %in% c("m", "f")) %>%
+  filter(marital %in% c("single", "married")) %>%
+  filter(parenthood %in% c("n", "y"))
+
+hm_df_tidy = unnest_tokens(hm_df, word, hm)
+```
+
+# Step 3 - Looking into most common words
+
+First, let's take a look at the corpus as a whole. If we look at the most frequently used words in all text, there will be many positive adjectives such as "great", "good" and verbs such as "got", "made". Looking at such words alone cannot provide much information on the text. Therefore, I only used the nouns that are not associated with time here. According to the bar chart, we can conclude that:
+
++ In general, people's hapinness is closely related to their friends, work and family.
+
+```{r, message = F, warning = F}
+########## Plot most common words ##########
+# order the words on bar-chart
+hm_noun$lowercaseLemma = factor(hm_noun$lowercaseLemma, 
+                                levels = hm_noun$lowercaseLemma[order(hm_noun$n)])
+# plot on the top 15 common words
+hm_noun %>%
+  top_n(15) %>%
+  mutate(word = reorder(lowercaseLemma, n)) %>%
+  ggplot(aes(lowercaseLemma, n)) +
+  geom_bar(stat = "identity", fill = "darkslategray3") +
+  labs(x = "most common nouns",
+       y = "count of the nouns",
+       title = "Top 15 Most Common Nouns in the HappyDB Corpus") +
+  coord_flip()
+```
+
+# Step 4 - Compare word frequencies accross different demographic characteristics and reflection periods
+
+To make use of more details in the data, we compare the most common words used by people from different categories. By doing so, some characteristics of happy moments associated with gender, parenthood, marital status, age and reflection period show up.
+
+## (1) Word frequencies accross different gender
+
+The graph below shows that: 
+
++ Family words such as "baby" and "children" are frequently mentioned in happy memories, and females tend to mention them slightly more. It is interesting that the word "mama" brings more joy to females than it to males and the word "papa" to both, which shows an obvious bond between mothers and kids.
+
++ Words related to spouses are mentioned quite frequent.
+
++ Both female and male share some common topics that make them happy, such as "birthday", "friend". Some frequent words mentioned in happy moments are consistent with hobbies. Such as "makeup", "crochet" to female and "nba", "bike" to male.
+
+```{r, message = F, warning = F, fig.height=6, fig.width=8}
+########## Plot most common words across gender ##########
+# select the gender feature and calculate word proportions
+hm_df_tidy_gender = hm_df_tidy[, c("word","gender")]
+frequency_gender = hm_df_tidy_gender %>% 
+  count(gender, word) %>%
+  group_by(gender) %>%
+  mutate(proportion = n / sum(n)) %>% 
+  select(-n) %>%
+  spread(gender, proportion)
+# plot word proportions of male against female
+ggplot(frequency_gender, aes(x = f, y = m, color = abs(f - m))) +
+  geom_abline(color = "gray40", lty = 2) +
+  geom_jitter(alpha = 0.1, size = 2.5, width = 0.3, height = 0.3) +
+  geom_text(aes(label = word), check_overlap = TRUE, vjust = 1.5) +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  scale_color_gradient(limits = c(0, 0.001), low = "darkslategray4", high = "gray75") +
+  theme(legend.position="none") +
+  labs(y = "proportion of stemmed common words used by male", 
+       x = "proportion of stemmed common words used by female",
+       title = "Proportion of Stemmed Common Words Comparison accross Gender")
+
+rbind(filter(frequency_gender, word == "mama"), filter(frequency_gender, word == "papa"))
+```
+
+## (2) Word frequencies accross different parenthood status
+
+The graph below shows that: 
+
++ In genral, when people thinking about happy moments, they think of someone around them. For parents, family members are frequently mentioned in happy moments. This is connected with the findings in step3 that people like to mention families in happy moments. And for those that are not a parent, they frequently someone like roommates.
+
++ There is a pattern of time allocation difference between this two groups. For parents, kids related topics ("birth", "kindergarten") are mentioned more frequently, while for the other group, recreationary activities ("bbq", "guitar") are mentioned more.
+
+```{r, message = F, warning = F, fig.height=6, fig.width=8}
+########## Plot most common words across parenthood ##########
+# select the parenthood feature and calculate word proportions
+hm_df_tidy_parenthood = hm_df_tidy[, c("word","parenthood")]
+frequency_parenthood = hm_df_tidy_parenthood %>% 
+  count(parenthood, word) %>%
+  group_by(parenthood) %>%
+  mutate(proportion = n / sum(n)) %>% 
+  select(-n) %>%
+  spread(parenthood, proportion)
+# plot word proportions of parents against non-parents
+ggplot(frequency_parenthood, aes(x = n, y = y, color = abs(n - y))) +
+  geom_abline(color = "gray40", lty = 2) +
+  geom_jitter(alpha = 0.1, size = 2.5, width = 0.3, height = 0.3) +
+  geom_text(aes(label = word), check_overlap = TRUE, vjust = 1.5) +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  scale_color_gradient(limits = c(0, 0.001), low = "darkslategray4", high = "gray75") +
+  theme(legend.position="none") +
+  labs(y = "proportion of stemmed common words used by parents", 
+       x = "proportion of stemmed common words use by non-parents",
+       title = "Proportion of Stemmed Common Words Comparison accross Parenthood")
+```
+
+## (3) Word frequencies accross different marital status
+
+The graph below shows that: 
+
++ Not suprisingly, for married people, "husband", "wife" and "spouse" are mentioned more frequently, while for single people, "girlfriend", "boyfriend" and "fiance" are.
+
++ As marital status is closely related to parenthood, for the married ones, kids are also mentioned much more common.
+
+```{r, message = F, warning = F, fig.height=6, fig.width=8}
+########## Plot most common words across marital status ##########
+# select the marital status feature and calculate word proportions
+hm_df_tidy_marital = hm_df_tidy[, c("word","marital")]
+frequency_marital = hm_df_tidy_marital %>% 
+  count(marital, word) %>%
+  group_by(marital) %>%
+  mutate(proportion = n / sum(n)) %>% 
+  select(-n) %>%
+  spread(marital, proportion)
+# plot word proportions of single against married
+ggplot(frequency_marital, aes(x = married, y = single, color = abs(married - single))) +
+  geom_abline(color = "gray40", lty = 2) +
+  geom_jitter(alpha = 0.1, size = 2.5, width = 0.3, height = 0.3) +
+  geom_text(aes(label = word), check_overlap = TRUE, vjust = 1.5) +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  scale_color_gradient(limits = c(0, 0.001), low = "darkslategray4", high = "gray75") +
+  theme(legend.position="none") +
+  labs(y = "proportion of stemmed common words used by single people", 
+       x = "proportion of stemmed common words used by married people",
+       title = "Proportion of Stemmed Common Words Comparison accross Marital Status")
+```
+
+## (4) Word frequencies accross different ages period
+
+In order to compare how age affects happy moments, I divided people into 2 groups, before and after 50 years old (this is just an arbitrary division). The graph below shows that: 
+
++ There is a pattern that people across different ages pay attention and enjoy different things. For those over 50, they enjoy the nature more (supporting words including "flower", "yard", "bird"). For those under 50, they enjoy human activity more (supporting words including "bar", "game").
+
++ One interesting thing is that people under 50 are more like to use strong words to express their happiness (such as "amazing", "awesome", "absolute") compared with people over 50.
+
+```{r, message = F, warning = F, fig.height=6, fig.width=8}
+########## Plot most common words across age ##########
+# select the age feature and classify people into 2 categories: before 50 and after 50
+hm_df_tidy_age = hm_df_tidy[, c("word","age")]
+hm_df_tidy_age$age[hm_df_tidy_age$age >= 50] = "after50"
+hm_df_tidy_age$age[hm_df_tidy_age$age < 50] = "before50"
+# calculate the word proportions
+frequency_age = hm_df_tidy_age %>% 
+  count(age, word) %>%
+  group_by(age) %>%
+  mutate(proportion = n / sum(n)) %>% 
+  select(-n) %>%
+  spread(age, proportion) 
+# plot word proportions of before 50 against over 50
+ggplot(frequency_age, aes(x = `after50`, y = `before50`, color = abs(`after50` - `before50`))) +
+  geom_abline(color = "gray40", lty = 2) +
+  geom_jitter(alpha = 0.1, size = 2.5, width = 0.3, height = 0.3) +
+  geom_text(aes(label = word), check_overlap = TRUE, vjust = 1.5) +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  scale_color_gradient(limits = c(0, 0.001), low = "darkslategray4", high = "gray75") +
+  theme(legend.position="none") +
+  labs(y = "proportion of stemmed common words used by people under 50", 
+       x = "proportion of stemmed common words used by people above 50",
+       title = "Proportion of Stemmed Common Words Comparison accross Age")
+```
+
+## (5) Word frequencies accross different reflection period
+
+After looking into demographic feature, let's see if different reflection periods result in different kinds of happy moments. Reflection period refers to the time period people used to recall happy moments. The graph below shows that: 
+
++ Under a 3-month reflection period, people tend to mention important events that do not happen very often, such as Valentine's Day, graudation, etc. Under a 24 hours reflection period, people tend to mention things that are used in daily life, such as coffee, bed.
+
++ One interesting thing is that people mention foods (for example, coffee, cookie, bun) much more often when the reflection period is short.
+
+```{r, message = F, warning = F, fig.height=6, fig.width=8}
+########## Plot most common words across reflection period ##########
+# select the reflection period feature and calculate word proportions
+hm_df_tidy_reflection_period = hm_df_tidy[, c("word","reflection_period")]
+frequency_reflection_period = hm_df_tidy_reflection_period %>% 
+  count(reflection_period, word) %>%
+  group_by(reflection_period) %>%
+  mutate(proportion = n / sum(n)) %>% 
+  select(-n) %>%
+  spread(reflection_period, proportion)
+
+# plot word proportions of 3 months against 24 hours
+ggplot(frequency_reflection_period, aes(x = `24h`, y = `3m`, color = abs(`24h` - `3m`))) +
+  geom_abline(color = "gray40", lty = 2) +
+  geom_jitter(alpha = 0.1, size = 2.5, width = 0.3, height = 0.3) +
+  geom_text(aes(label = word), check_overlap = TRUE, vjust = 1.5) +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  scale_color_gradient(limits = c(0, 0.001), low = "darkslategray4", high = "gray75") +
+  theme(legend.position="none") +
+  labs(y = "proportion of stemmed common words over a reflection period of 3 months", 
+       x = "proportion of stemmed common words over a reflection period of 24 hours",
+       title = "Proportion of Stemmed Common Words Comparison accross Reflection Period")
+```
+
+# Step 5 - Trigram model
+
+To better understand the meaning of happy moment sentences, counting frequency in single words is not enough. An n-gram model can be informative here. In our data, a bigram model contains a lot of phrases like "made feek", "got new" that do not make sense alone. Therefore, I used a trigram model to obtain information from data. According to the trigrams:
+
++ Recreationary events are pleasant. They are motioned most frequently in happy moments.
+
++ People love new things. The second most mentioned things are new items or environment. It looks like changes really fresh people's mind and make them happy.
+
++ Good things happened at work or school are also a major contributor to happiness.
+
+
+```{r, message=F, warning=F, fig.height=6, fig.width=7}
+########## Trigram model ##########
+# Unnest the corpus into trigrams
+hm_trigram = unnest_tokens(hm_text, trigram, text, token = "ngrams",n = 3) %>%
+  dplyr::count(trigram, sort = T)
+hm_trigram_top15 = hm_trigram[1:15,]
+hm_trigram_top15$trigram = factor(hm_trigram_top15$trigram, levels = hm_trigram_top15$trigram[order(hm_trigram_top15$n)])
+
+# plot on the most top 15 common trigrams
+ggplot(hm_trigram_top15, aes(x = trigram, y = n)) + 
+  geom_bar(stat = "identity", fill = "darkslategray3") +
+  coord_flip() +
+  labs(x = "most common 3-word phrases", 
+       y = "count of phrases",
+       title = "Top 15 Most Common 3-word Phrases in the HappyDB Corpus") + 
+  theme_light()
+```
+
+# Step 6 - Sentiment analysis
+
+We can do more than reading words and sentences in the corpus by digging into the emotions behind it. It is natural that happy moments are related to positive emotions. But happiness can be complicated and have multiple sources. In this chunk I used the [NRC Word-Emotion Association Lexicon](http://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm) to apply sentiment analysis on single words and sentences in this corpus.
+
+## A unigram method
+
+I counted the appearances of each emotion (positive and negative are not included) in the text words. Because the number of words belonging to each sentiment in not the same, comparing the absolute counts is not informative enough. The "times" variable below improves it by computing how many times over the total number of words in each sentiment appear:
+$$times = \frac{the\; count\; of\; words\; belonging\; to\; this\; emotion\; in\; the\; corpus\;}{the\; number\; of\; words\; belonging\; to\; this\; emotion\; in\; the\; lexicon\;}$$
+
+
+The appearance of negative emotions is probably due to the negation term along with them.
+
+As we can see from the following bar plot:
+
++ All the words associated with postive emotions (anticipation, joy, surprise, trust) obviously appear more frequently than those associated with negative emotions (anger, disgust, fear, sadness). This is not surprising because we are dealing with happy moment sentences.
+
++ When talking about happy moments, people tend to recall those situations that make them feel pure joy. Emotions related to anticipation, trust and surprise are less mentioned, even though they are positive and can be pleasant as well.
+
+```{r, warming = F, message = F}
+########## unigram sentiment analysis on the dictionary ##########
+# count words belonging each emotions and compute "times"
+# some stemmed words cannot be recognized by lexicon
+# use the dictionary instead
+sentiment_count = get_sentiments("nrc") %>% count(sentiment)
+word_sentiment = dict_word %>% 
+  inner_join(get_sentiments("nrc")) %>%
+  count(sentiment) %>%
+  inner_join(y = sentiment_count, by = "sentiment") %>%
+  mutate(times = n.x/n.y) %>%
+  filter(sentiment %in% c("anger", "anticipation", "disgust", "fear", "joy", "sadness", "surprise", "trust"))
+
+# plot "times" across emotions
+ggplot(word_sentiment, aes(x = sentiment, y = times)) +
+  geom_bar(stat = "identity", fill = "darkslategray3") +
+  geom_hline(yintercept = 15, color = "black") +
+  labs(x = "emotions", 
+       y = "times",
+       title = "How Common Each Emotion Appears in the Corpus, Word-Wise") +
+  theme_light()
+```
+
+## Sentiment analysis on sentences
+
+This time, I computed the emotions sentence-wise using the same lexicon. To limit the time of generating this notebook, randomly choose 10% of the happy moments to inverstigate. "times" refers to the same meaning in the unigram method. As we can see from the graph below:
+
++ Obviously, the nagative emotions are used much less compared to positive ones
+
++ Compared to other positive emotions, "surprise" contributes much less to people's happiness. It looks like people usually do not mention surprising moments when they recall happy times.
+
+```{r, message=F, warning=F}
+########## sentiment analysis on sentences ##########
+# count words belonging each emotions sentence-wise, and compute "times"
+set.seed(5)
+len_dict = nrow(dict_text)
+num_dict = sample(1:10, len_dict, replace = T)
+samp_dict = dict_text[num_dict == 1, ]
+sentence_sentiment = get_nrc_sentiment(samp_dict) %>%
+  apply(2, sum)
+sentence_sentiment = (sentence_sentiment/sentiment_count$n)[1:8] %>%
+  melt()
+sentence_sentiment = cbind(emotions = rownames(sentence_sentiment), sentence_sentiment)
+
+# plot "times" across emotions
+ggplot(sentence_sentiment, aes(x = emotions, y = value)) +
+  geom_bar(stat = "identity", fill = "darkslategray3") +
+  geom_hline(yintercept = 1.0, color = "black") + 
+  labs(x = "emotions", 
+       y = "times",
+       title = "How Common Each Emotion Appears in the Corpus, Sentence-Wise") +
+  theme_light()
+```
+
+**Citation: Happy DB**
+
+Akari Asai, Sara Evensen, Behzad Golshan, Alon Halevy, Vivian Li, Andrei Lopatenko, 
+Daniela Stepanov, Yoshihiko Suhara, Wang-Chiew Tan, Yinzhan Xu, 
+``HappyDB: A Corpus of 100,000 Crowdsourced Happy Moments'', LREC '18, May 2018. (to appear)
