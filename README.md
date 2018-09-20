@@ -15,7 +15,7 @@ Term: Fall 2018
 
 + This project is conducted by [Ruoxi Bai]
 
-+ Project summary: [a short summary] This project uses data science methods to find an underlying story behind the happyDB corpus. First take a look at high frequency words in general and in different demographic or survey categories. Then read into common trigram phrases appeared in the corpus. At last, apply sentiment analysis to capture emotional structure behind the corpus.
++ Project summary: This project uses data science methods to find an underlying story behind the happyDB corpus. First take a look at high frequency words in general and in different demographic or survey categories. Then read into common trigram phrases appeared in the corpus. At last, apply sentiment analysis to capture emotional structure behind the corpus.
 
 Following [suggestions](http://nicercode.github.io/blog/2013-04-05-projects/) by [RICH FITZJOHN](http://nicercode.github.io/about/#Team) (@richfitz). This folder is orgarnized as follows.
 
