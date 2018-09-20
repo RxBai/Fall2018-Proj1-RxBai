@@ -81,6 +81,8 @@ library(ggplot2)
 library(ngram)
 library(topicmodels)
 library(syuzhet)
+
+source("../lib/plotComparison.R")
 ```
 
 This notebook was prepared with the following environmental settings.
@@ -187,6 +189,7 @@ First, let's take a look at the corpus as a whole. If we look at the most freque
 hm_noun$lowercaseLemma = factor(hm_noun$lowercaseLemma, 
                                 levels = hm_noun$lowercaseLemma[order(hm_noun$n)])
 # plot on the top 15 common words
+# jpeg('../figs/nounCount.jpg')
 hm_noun %>%
   top_n(15) %>%
   mutate(word = reorder(lowercaseLemma, n)) %>%
@@ -200,7 +203,7 @@ hm_noun %>%
 
 ## Step 4 - Compare word frequencies accross different demographic characteristics and reflection periods
 
-To make use of more details in the data, I compared the most common words used by people from different categories. By doing so, some characteristics of happy moments associated with gender, parenthood, marital status, age and reflection period showed up.
+To make use of more details in the data, I compared the most common words used by people from different categories. By doing so, some characteristics of happy moments associated with gender, parenthood, marital status, age and reflection period showed up. *The words are stemmed so some of them in the plots may look strange.*
 
 ### (1) Word frequencies accross different gender
 
@@ -223,6 +226,7 @@ frequency_gender = hm_df_tidy_gender %>%
   select(-n) %>%
   spread(gender, proportion)
 # plot word proportions of male against female
+# jpeg('../figs/gender.jpg')
 ggplot(frequency_gender, aes(x = f, y = m, color = abs(f - m))) +
   geom_abline(color = "gray40", lty = 2) +
   geom_jitter(alpha = 0.1, size = 2.5, width = 0.3, height = 0.3) +
@@ -233,7 +237,7 @@ ggplot(frequency_gender, aes(x = f, y = m, color = abs(f - m))) +
   theme(legend.position="none") +
   labs(y = "proportion of stemmed common words used by male", 
        x = "proportion of stemmed common words used by female",
-       title = "Proportion of Stemmed Common Words Comparison accross Gender")
+       title = "Proportion of Common Words Comparison - Gender")
 
 rbind(filter(frequency_gender, word == "mama"), filter(frequency_gender, word == "papa"))
 ```
@@ -257,6 +261,7 @@ frequency_parenthood = hm_df_tidy_parenthood %>%
   select(-n) %>%
   spread(parenthood, proportion)
 # plot word proportions of parents against non-parents
+# jpeg('../figs/parenthood.jpg')
 ggplot(frequency_parenthood, aes(x = n, y = y, color = abs(n - y))) +
   geom_abline(color = "gray40", lty = 2) +
   geom_jitter(alpha = 0.1, size = 2.5, width = 0.3, height = 0.3) +
@@ -267,7 +272,7 @@ ggplot(frequency_parenthood, aes(x = n, y = y, color = abs(n - y))) +
   theme(legend.position="none") +
   labs(y = "proportion of stemmed common words used by parents", 
        x = "proportion of stemmed common words use by non-parents",
-       title = "Proportion of Stemmed Common Words Comparison accross Parenthood")
+       title = "Proportion of Common Words Comparison - Parenthood")
 ```
 
 ### (3) Word frequencies accross different marital status
@@ -289,6 +294,7 @@ frequency_marital = hm_df_tidy_marital %>%
   select(-n) %>%
   spread(marital, proportion)
 # plot word proportions of single against married
+# jpeg('../figs/marital.jpg')
 ggplot(frequency_marital, aes(x = married, y = single, color = abs(married - single))) +
   geom_abline(color = "gray40", lty = 2) +
   geom_jitter(alpha = 0.1, size = 2.5, width = 0.3, height = 0.3) +
@@ -299,7 +305,7 @@ ggplot(frequency_marital, aes(x = married, y = single, color = abs(married - sin
   theme(legend.position="none") +
   labs(y = "proportion of stemmed common words used by single people", 
        x = "proportion of stemmed common words used by married people",
-       title = "Proportion of Stemmed Common Words Comparison accross Marital Status")
+       title = "Proportion of Common Words Comparison - Marital Status")
 ```
 
 ### (4) Word frequencies accross different ages period
@@ -324,6 +330,7 @@ frequency_age = hm_df_tidy_age %>%
   select(-n) %>%
   spread(age, proportion) 
 # plot word proportions of before 50 against over 50
+# jpeg('../figs/age.jpg')
 ggplot(frequency_age, aes(x = `after50`, y = `before50`, color = abs(`after50` - `before50`))) +
   geom_abline(color = "gray40", lty = 2) +
   geom_jitter(alpha = 0.1, size = 2.5, width = 0.3, height = 0.3) +
@@ -334,7 +341,7 @@ ggplot(frequency_age, aes(x = `after50`, y = `before50`, color = abs(`after50` -
   theme(legend.position="none") +
   labs(y = "proportion of stemmed common words used by people under 50", 
        x = "proportion of stemmed common words used by people above 50",
-       title = "Proportion of Stemmed Common Words Comparison accross Age")
+       title = "Proportion of Common Words Comparison - Age")
 ```
 
 ### (5) Word frequencies accross different reflection period
@@ -357,6 +364,7 @@ frequency_reflection_period = hm_df_tidy_reflection_period %>%
   spread(reflection_period, proportion)
 
 # plot word proportions of 3 months against 24 hours
+# jpeg('../figs/reflection_period.jpg')
 ggplot(frequency_reflection_period, aes(x = `24h`, y = `3m`, color = abs(`24h` - `3m`))) +
   geom_abline(color = "gray40", lty = 2) +
   geom_jitter(alpha = 0.1, size = 2.5, width = 0.3, height = 0.3) +
@@ -367,7 +375,7 @@ ggplot(frequency_reflection_period, aes(x = `24h`, y = `3m`, color = abs(`24h` -
   theme(legend.position="none") +
   labs(y = "proportion of stemmed common words over a reflection period of 3 months", 
        x = "proportion of stemmed common words over a reflection period of 24 hours",
-       title = "Proportion of Stemmed Common Words Comparison accross Reflection Period")
+       title = "Proportion of Common Words Comparison - Reflection Period")
 ```
 
 # Part 2: Phrases
@@ -394,6 +402,7 @@ hm_trigram_top15 = hm_trigram[1:15,]
 hm_trigram_top15$trigram = factor(hm_trigram_top15$trigram, levels = hm_trigram_top15$trigram[order(hm_trigram_top15$n)])
 
 # plot on the most top 15 common trigrams
+# jpeg('../figs/trigram.jpg')
 ggplot(hm_trigram_top15, aes(x = trigram, y = n)) + 
   geom_bar(stat = "identity", fill = "darkslategray3") +
   coord_flip() +
@@ -439,6 +448,7 @@ word_sentiment = dict_word %>%
   filter(sentiment %in% c("anger", "anticipation", "disgust", "fear", "joy", "sadness", "surprise", "trust"))
 
 # plot "times" across emotions
+# jpeg('../figs/emoword.jpg')
 ggplot(word_sentiment, aes(x = sentiment, y = times)) +
   geom_bar(stat = "identity", fill = "darkslategray3") +
   geom_hline(yintercept = 15, color = "black") +
@@ -470,6 +480,7 @@ sentence_sentiment = (sentence_sentiment/sentiment_count$n)[1:8] %>%
 sentence_sentiment = cbind(emotions = rownames(sentence_sentiment), sentence_sentiment)
 
 # plot "times" across emotions
+# jpeg('../figs/emosentence.jpg')
 ggplot(sentence_sentiment, aes(x = emotions, y = value)) +
   geom_bar(stat = "identity", fill = "darkslategray3") +
   geom_hline(yintercept = 1.0, color = "black") + 
@@ -478,6 +489,12 @@ ggplot(sentence_sentiment, aes(x = emotions, y = value)) +
        title = "How Common Each Emotion Appears in the Corpus, Sentence-Wise") +
   theme_light()
 ```
+
+```{r, include=F}
+# dev.off
+```
+
+*To show the plots in html file, jpeg() and dev.off are commented.*
 
 **Citation: Happy DB**
 

@@ -76,7 +76,7 @@ Let's take a look at the most frequently used words. Friendship is mentioned mos
 
 + One interesting thing is that people mention foods (for example, coffee, cookie, bun) much more often when the reflection period is short.
 
-![image](figs/reflection.jpg)
+![image](figs/reflection_period.jpg)
 
 ## Part 2: phrases
 
