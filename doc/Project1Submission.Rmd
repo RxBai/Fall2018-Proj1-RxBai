@@ -81,8 +81,6 @@ library(ggplot2)
 library(ngram)
 library(topicmodels)
 library(syuzhet)
-
-source("../lib/plotComparison.R")
 ```
 
 This notebook was prepared with the following environmental settings.
