@@ -112,3 +112,11 @@ Finally, let's dig deeper in the corpus and find the emotional structure of it.
 + Compared to other positive emotions, "surprise" contributes much less to people's happiness. It looks like people usually do not mention surprising moments when they recall happy times.
 
 ![image](figs/emosentence.jpg)
+
+**[Project Report](https://github.com/TZstatsADS/Fall2018-Proj1-RxBai/blob/master/doc/Project1Submission.html)**
+
+**Citation: Happy DB**
+
+Akari Asai, Sara Evensen, Behzad Golshan, Alon Halevy, Vivian Li, Andrei Lopatenko, 
+Daniela Stepanov, Yoshihiko Suhara, Wang-Chiew Tan, Yinzhan Xu, 
+``HappyDB: A Corpus of 100,000 Crowdsourced Happy Moments'', LREC '18, May 2018.
