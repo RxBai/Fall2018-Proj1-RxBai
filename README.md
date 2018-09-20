@@ -5,7 +5,6 @@
 ![image](figs/title.jpeg)
 
 ### [Project Description](doc/)
-This is the first and only *individual* (as opposed to *team*) this semester. 
 
 HappyDB is a corpus of 100,000+ crowd-sourced happy moments. The goal of the corpus is to advance the state of the art of understanding the causes of happiness that can be gleaned from text. Rit-public conducted a large scale collection of happy moments over 3 months on Amazon Mechanical Turk (MTurk.) For every task, they asked the MTurk workers to describe 3 happy moments in the past 24 hours (or past 3 months.) This report aims to extract interesting finds from HappyDB using data science methods.
 
