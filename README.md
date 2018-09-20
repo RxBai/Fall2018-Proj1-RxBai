@@ -1,11 +1,10 @@
 # Applied Data Science @ Columbia
 ## Fall 2018
-## Project 1: What made you happy today?
+## Project 1: Data Story of Happy Moments
 
 ![image](figs/title.jpeg)
 
 ### [Project Description](doc/)
-This is the first and only *individual* (as opposed to *team*) this semester. 
 
 HappyDB is a corpus of 100,000+ crowd-sourced happy moments. The goal of the corpus is to advance the state of the art of understanding the causes of happiness that can be gleaned from text. Rit-public conducted a large scale collection of happy moments over 3 months on Amazon Mechanical Turk (MTurk.) For every task, they asked the MTurk workers to describe 3 happy moments in the past 24 hours (or past 3 months.) This report aims to extract interesting finds from HappyDB using data science methods.
 
@@ -15,7 +14,7 @@ Term: Fall 2018
 
 + This project is conducted by [Ruoxi Bai]
 
-+ Project summary: [a short summary] This project uses data science methods to find an underlying story behind the happyDB corpus. First take a look at high frequency words in general and in different demographic or survey categories. Then read into common trigram phrases appeared in the corpus. At last, apply sentiment analysis to capture emotional structure behind the corpus.
++ Project summary: This project uses data science methods to find an underlying story behind the happyDB corpus. First take a look at high frequency words in general and in different demographic or survey categories. Then read into common trigram phrases appeared in the corpus. At last, apply sentiment analysis to capture emotional structure behind the corpus.
 
 Following [suggestions](http://nicercode.github.io/blog/2013-04-05-projects/) by [RICH FITZJOHN](http://nicercode.github.io/about/#Team) (@richfitz). This folder is orgarnized as follows.
 
@@ -112,3 +111,11 @@ Finally, let's dig deeper in the corpus and find the emotional structure of it.
 + Compared to other positive emotions, "surprise" contributes much less to people's happiness. It looks like people usually do not mention surprising moments when they recall happy times.
 
 ![image](figs/emosentence.jpg)
+
+**[Project Report](https://github.com/TZstatsADS/Fall2018-Proj1-RxBai/blob/master/doc/Project1Submission.html)**
+
+**Citation: Happy DB**
+
+Akari Asai, Sara Evensen, Behzad Golshan, Alon Halevy, Vivian Li, Andrei Lopatenko, 
+Daniela Stepanov, Yoshihiko Suhara, Wang-Chiew Tan, Yinzhan Xu, 
+``HappyDB: A Corpus of 100,000 Crowdsourced Happy Moments'', LREC '18, May 2018.
